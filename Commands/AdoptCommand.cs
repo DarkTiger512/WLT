@@ -17,6 +17,8 @@ public sealed class AdoptCommand : ICommand
     public async Task<CommandResult> ExecuteAsync(TwitchMessage message, CancellationToken cancellationToken = default)
     {
         var adoptionResult = await _adoptionService.AdoptAsync(message.UserName, cancellationToken).ConfigureAwait(false);
-        return CommandResult.Success(adoptionResult.Message);
+        return adoptionResult.IntegrationResult.Accepted
+            ? CommandResult.Success(adoptionResult.Message)
+            : CommandResult.Failure(adoptionResult.Message);
     }
 }

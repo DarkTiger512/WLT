@@ -24,8 +24,32 @@ public sealed class CommandRouterTests
         var records = await store.LoadAsync().ConfigureAwait(false);
 
         Assert.True(result.Handled);
+        Assert.True(result.Succeeded);
         Assert.Single(records);
         Assert.Equal("viewer_one", records[0].ViewerName);
+        Assert.Single(integration.ReceivedViewerNames);
+        Assert.Equal("viewer_one", integration.ReceivedViewerNames[0]);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ForRejectedAdoptCommand_DoesNotPersistRecord()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName(), "adoptions.json");
+        var store = new AdoptionStore(filePath);
+        var integration = new RecordingGameIntegration(accepted: false);
+        var service = new AdoptionService(store, integration);
+        var command = new AdoptCommand(service);
+        var router = new CommandRouter(new Dictionary<string, ICommand>(StringComparer.OrdinalIgnoreCase)
+        {
+            [command.Name] = command,
+        });
+
+        var result = await router.RouteAsync(new TwitchMessage("viewer_one", "!adopt")).ConfigureAwait(false);
+        var records = await store.LoadAsync().ConfigureAwait(false);
+
+        Assert.True(result.Handled);
+        Assert.False(result.Succeeded);
+        Assert.Empty(records);
         Assert.Single(integration.ReceivedViewerNames);
         Assert.Equal("viewer_one", integration.ReceivedViewerNames[0]);
     }
@@ -38,16 +62,24 @@ public sealed class CommandRouterTests
         var result = await router.RouteAsync(new TwitchMessage("viewer_one", "!unknown")).ConfigureAwait(false);
 
         Assert.False(result.Handled);
+        Assert.False(result.Succeeded);
     }
 
     private sealed class RecordingGameIntegration : IGameIntegration
     {
+        private readonly bool _accepted;
+
+        public RecordingGameIntegration(bool accepted = true)
+        {
+            _accepted = accepted;
+        }
+
         public List<string> ReceivedViewerNames { get; } = [];
 
         public Task<GameIntegrationResult> RegisterAdoptionAsync(AdoptionRecord record, CancellationToken cancellationToken = default)
         {
             ReceivedViewerNames.Add(record.ViewerName);
-            return Task.FromResult(new GameIntegrationResult(true, $"{record.ViewerName} recorded"));
+            return Task.FromResult(new GameIntegrationResult(_accepted, $"{record.ViewerName} recorded"));
         }
     }
 }

@@ -26,8 +26,12 @@ public sealed class AdoptionService
             AdoptedAtUtc = DateTimeOffset.UtcNow,
         };
 
-        await _adoptionStore.UpsertAsync(record, cancellationToken).ConfigureAwait(false);
         var integrationResult = await _gameIntegration.RegisterAdoptionAsync(record, cancellationToken).ConfigureAwait(false);
+        if (integrationResult.Accepted)
+        {
+            await _adoptionStore.UpsertAsync(record, cancellationToken).ConfigureAwait(false);
+        }
+
         return new AdoptionResult(record, integrationResult);
     }
 }

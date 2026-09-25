@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading;
 
 namespace WarlordAwajiTwitch.Adoption;
 
@@ -8,6 +9,8 @@ public sealed class AdoptionStore
     {
         WriteIndented = true,
     };
+
+    private readonly SemaphoreSlim _gate = new(1, 1);
 
     public AdoptionStore(string filePath)
     {
@@ -30,25 +33,33 @@ public sealed class AdoptionStore
 
     public async Task UpsertAsync(AdoptionRecord record, CancellationToken cancellationToken = default)
     {
-        var records = (await LoadAsync(cancellationToken).ConfigureAwait(false)).ToList();
-        var existingIndex = records.FindIndex(existing => string.Equals(existing.ViewerName, record.ViewerName, StringComparison.OrdinalIgnoreCase));
-
-        if (existingIndex >= 0)
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            records[existingIndex] = record;
-        }
-        else
-        {
-            records.Add(record);
-        }
+            var records = (await LoadAsync(cancellationToken).ConfigureAwait(false)).ToList();
+            var existingIndex = records.FindIndex(existing => string.Equals(existing.ViewerName, record.ViewerName, StringComparison.OrdinalIgnoreCase));
 
-        var directory = Path.GetDirectoryName(FilePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+            if (existingIndex >= 0)
+            {
+                records[existingIndex] = record;
+            }
+            else
+            {
+                records.Add(record);
+            }
 
-        await using var stream = File.Create(FilePath);
-        await JsonSerializer.SerializeAsync(stream, records, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            var directory = Path.GetDirectoryName(FilePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            await using var stream = File.Create(FilePath);
+            await JsonSerializer.SerializeAsync(stream, records, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 }
