@@ -30,6 +30,7 @@ public sealed class ModMain : MelonMod
 
         _twitchClient = new TwitchClientStub(twitchConfig);
         _twitchClient.MessageReceived += HandleTwitchMessageAsync;
+        _twitchClient.ConnectAsync().GetAwaiter().GetResult();
 
         MelonLogger.Msg("WarlordAwajiTwitch initialized.");
     }

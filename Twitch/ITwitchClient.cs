@@ -9,4 +9,6 @@ public interface ITwitchClient
     event Func<TwitchMessage, CancellationToken, Task>? MessageReceived;
 
     Task ConnectAsync(CancellationToken cancellationToken = default);
+
+    Task PublishMessageAsync(TwitchMessage message, CancellationToken cancellationToken = default);
 }

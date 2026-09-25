@@ -63,6 +63,7 @@ public sealed class CommandRouterTests
 
         Assert.False(result.Handled);
         Assert.False(result.Succeeded);
+        Assert.Equal("Unknown command: unknown", result.Message);
     }
 
     private sealed class RecordingGameIntegration : IGameIntegration
@@ -74,7 +75,7 @@ public sealed class CommandRouterTests
             _accepted = accepted;
         }
 
-        public List<string> ReceivedViewerNames { get; } = [];
+        public List<string> ReceivedViewerNames { get; } = new();
 
         public Task<GameIntegrationResult> RegisterAdoptionAsync(AdoptionRecord record, CancellationToken cancellationToken = default)
         {

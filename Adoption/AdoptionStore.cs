@@ -21,14 +21,15 @@ public sealed class AdoptionStore
 
     public async Task<IReadOnlyList<AdoptionRecord>> LoadAsync(CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(FilePath))
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            return Array.Empty<AdoptionRecord>();
+            return await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
         }
-
-        await using var stream = File.OpenRead(FilePath);
-        var records = await JsonSerializer.DeserializeAsync<List<AdoptionRecord>>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
-        return records ?? new List<AdoptionRecord>();
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     public async Task UpsertAsync(AdoptionRecord record, CancellationToken cancellationToken = default)
@@ -36,7 +37,7 @@ public sealed class AdoptionStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var records = (await LoadAsync(cancellationToken).ConfigureAwait(false)).ToList();
+            var records = (await LoadCoreAsync(cancellationToken).ConfigureAwait(false)).ToList();
             var existingIndex = records.FindIndex(existing => string.Equals(existing.ViewerName, record.ViewerName, StringComparison.OrdinalIgnoreCase));
 
             if (existingIndex >= 0)
@@ -61,5 +62,17 @@ public sealed class AdoptionStore
         {
             _gate.Release();
         }
+    }
+
+    private async Task<IReadOnlyList<AdoptionRecord>> LoadCoreAsync(CancellationToken cancellationToken)
+    {
+        if (!File.Exists(FilePath))
+        {
+            return Array.Empty<AdoptionRecord>();
+        }
+
+        await using var stream = File.OpenRead(FilePath);
+        var records = await JsonSerializer.DeserializeAsync<List<AdoptionRecord>>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        return records ?? new List<AdoptionRecord>();
     }
 }
