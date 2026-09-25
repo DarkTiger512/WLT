@@ -29,18 +29,30 @@ public sealed class CommandRouter
     private static bool TryGetCommandName(string messageText, out string commandName)
     {
         commandName = string.Empty;
-        if (string.IsNullOrWhiteSpace(messageText) || !messageText.StartsWith('!'))
+        if (string.IsNullOrWhiteSpace(messageText))
         {
             return false;
         }
 
-        var parts = messageText.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
+        var trimmedMessage = messageText.Trim();
+        if (!trimmedMessage.StartsWith('!'))
         {
             return false;
         }
 
-        commandName = parts[0][1..].ToLowerInvariant();
-        return commandName.Length > 0;
+        var commandSpan = trimmedMessage.AsSpan(1);
+        var commandLength = 0;
+        while (commandLength < commandSpan.Length && !char.IsWhiteSpace(commandSpan[commandLength]))
+        {
+            commandLength++;
+        }
+
+        if (commandLength == 0)
+        {
+            return false;
+        }
+
+        commandName = new string(commandSpan[..commandLength]).ToLowerInvariant();
+        return true;
     }
 }

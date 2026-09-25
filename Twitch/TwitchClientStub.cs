@@ -18,8 +18,17 @@ public sealed class TwitchClientStub : ITwitchClient
         return Task.CompletedTask;
     }
 
-    public Task PublishMessageAsync(TwitchMessage message, CancellationToken cancellationToken = default)
+    public async Task PublishMessageAsync(TwitchMessage message, CancellationToken cancellationToken = default)
     {
-        return MessageReceived?.Invoke(message, cancellationToken) ?? Task.CompletedTask;
+        var handlers = MessageReceived;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (var handler in handlers.GetInvocationList().Cast<Func<TwitchMessage, CancellationToken, Task>>())
+        {
+            await handler(message, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

@@ -21,6 +21,6 @@ Lightweight MelonLoader mod scaffold for a future Twitch-driven `!adopt` flow in
 ## Development
 
 ```bash
-dotnet build WarlordAwajiTwitch.slnx
+dotnet build WarlordAwajiTwitch.csproj
 dotnet test tests/WarlordAwajiTwitch.Tests.csproj
 ```

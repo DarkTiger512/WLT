@@ -55,6 +55,25 @@ public sealed class CommandRouterTests
     }
 
     [Fact]
+    public async Task RouteAsync_ForCommandWithTabbedArguments_ParsesCommandName()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName(), "adoptions.json");
+        var store = new AdoptionStore(filePath);
+        var integration = new RecordingGameIntegration();
+        var service = new AdoptionService(store, integration);
+        var command = new AdoptCommand(service);
+        var router = new CommandRouter(new Dictionary<string, ICommand>(StringComparer.OrdinalIgnoreCase)
+        {
+            [command.Name] = command,
+        });
+
+        var result = await router.RouteAsync(new TwitchMessage("viewer_one", "!adopt\tsoon")).ConfigureAwait(false);
+
+        Assert.True(result.Handled);
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
     public async Task RouteAsync_ForUnknownCommand_DoesNotHandleMessage()
     {
         var router = new CommandRouter(new Dictionary<string, ICommand>());

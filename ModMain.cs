@@ -30,7 +30,7 @@ public sealed class ModMain : MelonMod
 
         _twitchClient = new TwitchClientStub(twitchConfig);
         _twitchClient.MessageReceived += HandleTwitchMessageAsync;
-        _twitchClient.ConnectAsync().GetAwaiter().GetResult();
+        _ = StartTwitchClientAsync(_twitchClient);
 
         MelonLogger.Msg("WarlordAwajiTwitch initialized.");
     }
@@ -54,5 +54,17 @@ public sealed class ModMain : MelonMod
         }
 
         MelonLogger.Msg(result.Message);
+    }
+
+    private static async Task StartTwitchClientAsync(ITwitchClient twitchClient)
+    {
+        try
+        {
+            await twitchClient.ConnectAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            MelonLogger.Error($"Failed to start Twitch client: {exception}");
+        }
     }
 }
