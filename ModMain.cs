@@ -13,6 +13,8 @@ public sealed class ModMain : MelonMod
 {
     private CommandRouter? _commandRouter;
     private ITwitchClient? _twitchClient;
+    private Task? _twitchClientStartupTask;
+    private bool _reportedTwitchClientStartup;
 
     public override void OnInitializeMelon()
     {
@@ -30,9 +32,33 @@ public sealed class ModMain : MelonMod
 
         _twitchClient = new TwitchClientStub(twitchConfig);
         _twitchClient.MessageReceived += HandleTwitchMessageAsync;
-        _ = StartTwitchClientAsync(_twitchClient);
+        _twitchClientStartupTask = _twitchClient.ConnectAsync();
 
         MelonLogger.Msg("WarlordAwajiTwitch initialized.");
+    }
+
+    public override void OnUpdate()
+    {
+        if (_reportedTwitchClientStartup || _twitchClientStartupTask is null || !_twitchClientStartupTask.IsCompleted)
+        {
+            return;
+        }
+
+        _reportedTwitchClientStartup = true;
+
+        if (_twitchClientStartupTask.IsFaulted)
+        {
+            MelonLogger.Error($"Failed to start Twitch client: {_twitchClientStartupTask.Exception}");
+            return;
+        }
+
+        if (_twitchClientStartupTask.IsCanceled)
+        {
+            MelonLogger.Error("Twitch client startup was canceled.");
+            return;
+        }
+
+        MelonLogger.Msg("Twitch client stub connected.");
     }
 
     internal Task<CommandResult> RouteMessageAsync(TwitchMessage message, CancellationToken cancellationToken = default)
@@ -54,17 +80,5 @@ public sealed class ModMain : MelonMod
         }
 
         MelonLogger.Msg(result.Message);
-    }
-
-    private static async Task StartTwitchClientAsync(ITwitchClient twitchClient)
-    {
-        try
-        {
-            await twitchClient.ConnectAsync().ConfigureAwait(false);
-        }
-        catch (Exception exception)
-        {
-            MelonLogger.Error($"Failed to start Twitch client: {exception}");
-        }
     }
 }

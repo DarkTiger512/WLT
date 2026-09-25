@@ -55,8 +55,23 @@ public sealed class AdoptionStore
                 Directory.CreateDirectory(directory);
             }
 
-            await using var stream = File.Create(FilePath);
-            await JsonSerializer.SerializeAsync(stream, records, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            var tempFilePath = Path.Combine(directory ?? Path.GetTempPath(), $"{Path.GetFileName(FilePath)}.{Guid.NewGuid():N}.tmp");
+            try
+            {
+                await using (var stream = File.Create(tempFilePath))
+                {
+                    await JsonSerializer.SerializeAsync(stream, records, SerializerOptions, cancellationToken).ConfigureAwait(false);
+                }
+
+                File.Move(tempFilePath, FilePath, true);
+            }
+            finally
+            {
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                }
+            }
         }
         finally
         {
@@ -72,7 +87,14 @@ public sealed class AdoptionStore
         }
 
         await using var stream = File.OpenRead(FilePath);
-        var records = await JsonSerializer.DeserializeAsync<List<AdoptionRecord>>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
-        return records ?? new List<AdoptionRecord>();
+        try
+        {
+            var records = await JsonSerializer.DeserializeAsync<List<AdoptionRecord>>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            return records ?? new List<AdoptionRecord>();
+        }
+        catch (JsonException)
+        {
+            return new List<AdoptionRecord>();
+        }
     }
 }

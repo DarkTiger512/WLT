@@ -54,8 +54,10 @@ public sealed class CommandRouterTests
         Assert.Equal("viewer_one", integration.ReceivedViewerNames[0]);
     }
 
-    [Fact]
-    public async Task RouteAsync_ForCommandWithTabbedArguments_ParsesCommandName()
+    [Theory]
+    [InlineData("!adopt soon")]
+    [InlineData("!adopt\tsoon")]
+    public async Task RouteAsync_ForCommandWithWhitespaceSeparatedArguments_ParsesCommandName(string messageText)
     {
         var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName(), "adoptions.json");
         var store = new AdoptionStore(filePath);
@@ -67,7 +69,7 @@ public sealed class CommandRouterTests
             [command.Name] = command,
         });
 
-        var result = await router.RouteAsync(new TwitchMessage("viewer_one", "!adopt\tsoon")).ConfigureAwait(false);
+        var result = await router.RouteAsync(new TwitchMessage("viewer_one", messageText)).ConfigureAwait(false);
 
         Assert.True(result.Handled);
         Assert.True(result.Succeeded);
